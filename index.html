@@ -2,334 +2,102 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>~*~ joshcerv.com ~*~</title>
-<meta name="description" content="Josh's official homepage on the World Wide Web.">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>joshcerv.com</title>
 <style>
-  * { box-sizing: border-box; }
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-  html, body {
-    margin: 0; padding: 0;
-    background: #000015;
-    height: 100%;
-    overflow-x: hidden;
-    font-family: "MS Sans Serif", Tahoma, Geneva, sans-serif;
-  }
+*{ box-sizing:border-box; margin:0; padding:0; }
 
-  #stars {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    pointer-events:none; z-index:0;
-  }
+html, body{
+  height:100%;
+  background:#000000;
+  overflow:hidden;
+}
 
-  /* ---------- Win95 window ---------- */
-  .banner-wrap {
-    position: relative;
-    z-index: 2;
-    margin: 40px auto 0 auto;
-    max-width: 700px;
-    padding: 0 16px;
-  }
+body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+}
 
-  .win95-window {
-    background: #c0c0c0;
-    border: 1px solid #000;
-    box-shadow:
-      inset 1px 1px 0 #dfdfdf,
-      inset -1px -1px 0 #404040,
-      3px 3px 0 rgba(0,0,0,0.6);
-    padding: 2px;
-  }
+/* ---------- CRT SCANLINES + VIGNETTE + FLICKER ---------- */
+.crt-overlay{
+  position:fixed;
+  inset:0;
+  z-index:5;
+  pointer-events:none;
+}
+.crt-overlay::before{
+  content:"";
+  position:absolute; inset:0;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.0) 0px,
+    rgba(0,0,0,0.0) 1px,
+    rgba(0,0,0,0.35) 2px,
+    rgba(0,0,0,0.35) 3px
+  );
+  mix-blend-mode:multiply;
+  animation: scanroll 9s linear infinite;
+}
+.crt-overlay::after{
+  content:"";
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.75) 100%);
+}
+@keyframes scanroll{
+  0%{ background-position-y:0px; }
+  100%{ background-position-y:120px; }
+}
+.crt-flicker{
+  position:fixed; inset:0; z-index:6; pointer-events:none;
+  background:rgba(33,33,255,0.02);
+  animation:flicker 6s infinite;
+}
+@keyframes flicker{
+  0%,19%,21%,100%{ opacity:1; }
+  20%{ opacity:0.82; }
+  50%{ opacity:1; }
+  51%{ opacity:0.9; }
+  52%{ opacity:1; }
+}
 
-  .titlebar {
-    background: linear-gradient(90deg, #000080, #1084d0);
-    color: #fff;
-    font-weight: bold;
-    font-size: 13px;
-    font-family: "MS Sans Serif", Tahoma, sans-serif;
-    padding: 3px 3px 3px 6px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    letter-spacing: 0.5px;
-  }
-  .titlebar .btns span {
-    display: inline-block;
-    width: 16px; height: 14px;
-    background: #c0c0c0;
-    border: 1px solid #dfdfdf;
-    border-right-color:#404040; border-bottom-color:#404040;
-    text-align: center; line-height: 12px;
-    font-size: 10px; color: #000;
-    font-weight: normal;
-    margin-left: 2px;
-    font-family: "Marlett", "MS Sans Serif", sans-serif;
-  }
+/* ---------- GLOWING SITE NAME ---------- */
+.title{
+  font-family:'Press Start 2P', monospace;
+  font-size:clamp(20px, 6vw, 48px);
+  color:#4d5bff;
+  text-shadow:
+    0 0 6px #2121ff,
+    0 0 18px rgba(33,33,255,0.7),
+    0 0 40px rgba(33,33,255,0.4);
+  letter-spacing:1px;
+  animation: bezelPulse 6.5s ease-in-out infinite;
+}
+@keyframes bezelPulse{
+  0%,100%{ text-shadow:
+    0 0 6px #2121ff,
+    0 0 18px rgba(33,33,255,0.7),
+    0 0 40px rgba(33,33,255,0.4); }
+  50%{ text-shadow:
+    0 0 10px #2121ff,
+    0 0 26px rgba(33,33,255,0.9),
+    0 0 60px rgba(33,33,255,0.6); }
+}
 
-  /* ---------- Authentic Win95 Tab Strip ---------- */
-  .tabstrip {
-    display: flex;
-    background: #c0c0c0;
-    padding: 6px 6px 0 10px;
-    margin-top: 1px;
-    position: relative;
-    z-index: 4;
-  }
-
-  .tab {
-    position: relative;
-    top: 2px;
-    margin-right: 2px;
-    padding: 3px 8px 4px 8px;
-    background: #c0c0c0;
-    font-size: 11px;
-    font-family: "MS Sans Serif", Tahoma, sans-serif;
-    color: #000;
-    
-    /* Classic Win95 outer bevel edges */
-    border-top: 1px solid #dfdfdf;
-    border-left: 1px solid #dfdfdf;
-    border-right: 1px solid #808080;
-    border-bottom: 1px solid #808080;
-    
-    /* Inner light highlight contrast */
-    box-shadow: inset 1px 1px 0 #fff;
-  }
-
-  /* Active tab pops up, pushes borders out, and masks the panel top-line */
-  .tab.active {
-    top: 0;
-    z-index: 5;
-    font-weight: normal;
-    padding: 4px 10px 5px 10px;
-    margin-top: -2px;
-    border-right: 1px solid #000;
-    border-bottom: 1px solid #c0c0c0; /* matches background color to break layout line */
-    box-shadow: inset 1px 1px 0 #fff, inset -1px 0 0 #404040;
-  }
-
-  .tab-panel {
-    background: #c0c0c0;
-    
-    /* Authentic recessed window container border */
-    border-top: 1px solid #dfdfdf;
-    border-left: 1px solid #dfdfdf;
-    border-right: 1px solid #404040;
-    border-bottom: 1px solid #404040;
-    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #000;
-    
-    margin: -1px 6px 6px 6px;
-    position: relative;
-    z-index: 2;
-    padding: 12px;
-  }
-
-  /* ---------- Infinite Scroller ---------- */
-  .marquee-body {
-    background: #000080;
-    border: 1px solid #808080;
-    border-right-color: #dfdfdf;
-    border-bottom-color: #dfdfdf;
-    overflow: hidden;
-    position: relative;
-    display: flex;
-    white-space: nowrap;
-    padding: 12px 0;
-  }
-
-  .scrolling-content {
-    display: inline-block;
-    font-family: "Times New Roman", serif;
-    font-size: 26px;
-    font-weight: bold;
-    color: #ffff00;
-    letter-spacing: 2px;
-    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
-    animation: continuousLoop 15s linear infinite;
-    padding-right: 50px;
-  }
-
-  @keyframes continuousLoop {
-    0% { transform: translate3d(0, 0, 0); }
-    100% { transform: translate3d(-50%, 0, 0); }
-  }
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.001s !important; animation-iteration-count:1 !important; }
+}
 </style>
 </head>
 <body>
 
-<canvas id="stars"></canvas>
+<div class="crt-overlay"></div>
+<div class="crt-flicker"></div>
 
-<div class="banner-wrap">
-  <div class="win95-window">
-    <div class="titlebar">
-      <span>🖥️ joshcerv.com</span>
-      <span class="btns"><span>_</span><span>□</span><span>X</span></span>
-    </div>
-    <div class="tabstrip">
-      <div class="tab active">Name & Location</div>
-      <div class="tab">Date Modified</div>
-      <div class="tab">Advanced</div>
-    </div>
-    <div class="tab-panel">
-      <div class="marquee-body">
-        <div class="scrolling-content">
-          ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp; ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp; ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp;
-        </div>
-        <div class="scrolling-content" aria-hidden="true">
-          ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp; ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp; ★彡 JOSHCERV.COM 彡★ &nbsp;&nbsp;&nbsp;&nbsp;
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ===================== SPACE BACKGROUND =====================
-   Parallax starfield: multiple depth layers drift at different
-   speeds as you scroll.
-================================================================ */
-(function(){
-  const c = document.getElementById('stars');
-  const ctx = c.getContext('2d');
-
-  function resize(){ c.width = window.innerWidth; c.height = window.innerHeight; }
-  resize();
-  window.addEventListener('resize', resize);
-
-  const STAR_COLORS = ["255,255,255", "180,220,255", "255,240,190", "220,190,255", "255,210,230"];
-
-  function makeLayer(count, speed, sizeMin, sizeMax){
-    const stars = [];
-    for(let i=0;i<count;i++){
-      stars.push({
-        x: Math.random()*2000,
-        y: Math.random()*2000,
-        r: Math.random()*(sizeMax-sizeMin)+sizeMin,
-        tw: Math.random()*Math.PI*2,
-        twSpeed: 0.5 + Math.random()*1.5,
-        color: STAR_COLORS[Math.floor(Math.random()*STAR_COLORS.length)],
-        sparkle: Math.random() < 0.15,
-        speed
-      });
-    }
-    return stars;
-  }
-
-  const layers = [
-    makeLayer(90, 0.05, 0.4, 1.0),
-    makeLayer(60, 0.15, 0.8, 1.6),
-    makeLayer(35, 0.30, 1.2, 2.4)
-  ];
-
-  /* ---------- Realistic Outer Edges Nebula ---------- */
-  function makeNebulaCluster(baseXFrac, baseYFrac, speed, palette, blobCount){
-    const blobs = [];
-    for(let i=0;i<blobCount;i++){
-      blobs.push({
-        dx: (Math.random()-0.5) * 450,
-        dy: (Math.random()-0.5) * 350,
-        r: 180 + Math.random()*220,
-        color: palette[Math.floor(Math.random()*palette.length)],
-        alpha: 0.03 + Math.random()*0.05 /* ultra-soft gradient blending */
-      });
-    }
-    return { baseXFrac, baseYFrac, speed, blobs };
-  }
-
-  const nebulaClusters = [
-    // Realistic Deep Blue cosmic haze - Deep Left Margin
-    makeNebulaCluster(0.05, 0.20, 0.03, ["25,55,110", "40,90,140", "15,35,80"], 8),
-    // Warm Cosmic Dust - Far Bottom Right Margin
-    makeNebulaCluster(0.95, 0.75, 0.05, ["130,40,60", "160,85,45", "90,25,50"], 8)
-  ];
-
-  let shootingStars = [];
-  function maybeSpawnShootingStar(){
-    if(Math.random() < 0.006){
-      const startX = Math.random()*c.width;
-      shootingStars.push({
-        x: startX, y: -10,
-        vx: 4 + Math.random()*3,
-        vy: 3 + Math.random()*2,
-        life: 1
-      });
-    }
-  }
-
-  function drawSparkle(x,y,r,color,alpha){
-    ctx.strokeStyle = `rgba(${color},${alpha})`;
-    ctx.lineWidth = 0.8;
-    ctx.beginPath();
-    ctx.moveTo(x-r*2, y); ctx.lineTo(x+r*2, y);
-    ctx.moveTo(x, y-r*2); ctx.lineTo(x, y+r*2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.fillStyle = `rgba(${color},${alpha})`;
-    ctx.arc(x,y,r*0.7,0,Math.PI*2);
-    ctx.fill();
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,c.width,c.height);
-    const t = Date.now()/1000;
-    const scrollY = window.scrollY || window.pageYOffset || 0;
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    nebulaClusters.forEach(cluster => {
-      const offset = (scrollY * cluster.speed) % (c.height*2);
-      const baseX = cluster.baseXFrac * c.width;
-      const baseY = (cluster.baseYFrac * c.height + offset) % (c.height + 600) - 300;
-      cluster.blobs.forEach(b => {
-        const bx = baseX + b.dx;
-        const by = baseY + b.dy;
-        const grad = ctx.createRadialGradient(bx,by,0,bx,by,b.r);
-        grad.addColorStop(0, `rgba(${b.color},${b.alpha})`);
-        grad.addColorStop(0.5, `rgba(${b.color},${b.alpha*0.4})`);
-        grad.addColorStop(1, `rgba(${b.color},0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(bx, by, b.r, 0, Math.PI*2);
-        ctx.fill();
-      });
-    });
-    ctx.restore();
-
-    layers.forEach(layer => {
-      layer.forEach(s => {
-        const wrapH = 2000;
-        const offsetY = (s.y + scrollY * s.speed) % wrapH;
-        const y = offsetY < 0 ? offsetY + wrapH : offsetY;
-        const x = s.x % c.width;
-        if (y > c.height + 10) return;
-        const alpha = 0.35 + 0.65*Math.abs(Math.sin(t*s.twSpeed + s.tw));
-        if(s.sparkle){
-          drawSparkle(x, y, s.r, s.color, alpha);
-        } else {
-          ctx.beginPath();
-          ctx.fillStyle = `rgba(${s.color},${alpha})`;
-          ctx.arc(x, y, s.r, 0, Math.PI*2);
-          ctx.fill();
-        }
-      });
-    });
-
-    maybeSpawnShootingStar();
-    shootingStars.forEach(sh => {
-      ctx.strokeStyle = `rgba(255,255,255,${sh.life})`;
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(sh.x, sh.y);
-      ctx.lineTo(sh.x - sh.vx*8, sh.y - sh.vy*8);
-      ctx.stroke();
-      sh.x += sh.vx; sh.y += sh.vy; sh.life -= 0.02;
-    });
-    shootingStars = shootingStars.filter(sh => sh.life > 0 && sh.y < c.height+20);
-
-    requestAnimationFrame(draw);
-  }
-  draw();
-})();
-</script>
+<h1 class="title">joshcerv.com</h1>
 
 </body>
 </html>
