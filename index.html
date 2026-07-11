@@ -6,12 +6,6 @@
 <title>Arcade Screen</title>
 <style>
 
-  /* ============================================================
-     FONT
-     Drop your font file next to this HTML file and it will load.
-     File expected: "emulogic.ttf" (rename yours to match, or
-     change the url() below to match your filename).
-     ============================================================ */
   @font-face {
     font-family: 'pixelfont';
     src: url('pixelfont.ttf') format('truetype');
@@ -32,36 +26,21 @@
     overflow: hidden;
   }
 
-  /* Fills the browser window, centers the screen, blacks out
-     the left/right (or top/bottom) bars so the 224x288 screen
-     is "zoomed to fit" without distortion. */
   body {
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  /* ============================================================
-     THE SCREEN
-     Everything inside is laid out on the ORIGINAL 224x288 pixel
-     grid, then the whole #screen element is scaled up/down as a
-     single unit via JS (see bottom of file) so every pixel scales
-     together and nothing shifts out of alignment.
-     ============================================================ */
   #screen {
     position: relative;
     width: 224px;
     height: 288px;
     background: #000000;
     transform-origin: center center;
-    /* prevents any accidental sub-pixel blurring of the border */
     image-rendering: pixelated;
   }
 
-  /* ----- TEXT -----
-     Plain, selectable/editable text. Edit the words directly in
-     the HTML below to change them. Font-size/position are tuned
-     to line up exactly with the 8px pixel-font grid. */
   .txt {
     position: absolute;
     font-family: 'pixelfont', monospace;
