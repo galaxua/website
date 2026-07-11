@@ -47,13 +47,13 @@
     outline: none;
     user-select: none;
   }
-  #highscore-label {
+  #top-label {
     top: 0px;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
   }
-  #score-value {
+  #lower-value {
     top: 9px;
     right: 88px;
     text-align: right;
@@ -67,8 +67,8 @@
 <body>
 <div id="stage">
   <canvas id="c"></canvas>
-  <div id="highscore-label" class="pf-text">HIGH SCORE</div>
-  <div id="score-value" class="pf-text">00</div>
+  <div id="top-label" class="pf-text">joshcerv.com</div>
+  <div id="lower-value" class="pf-text"></div>
 </div>
 <script>
 const W = 224, H = 288;
@@ -107,8 +107,6 @@ function draw() {
     }
   }
   ctx.putImageData(img, 0, 0);
-  // Blank out the baked-in "HIGH SCORE" / "00" pixel text —
-  // it's replaced by the real, editable text overlays.
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, 16);
 }
