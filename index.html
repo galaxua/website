@@ -67,7 +67,7 @@
     resize: none;
     background: transparent;
     border: none !important;
-    padding: 2px 2px 0 2px; /* Top: 2px, Right: 2px, Bottom: 0, Left: 2px */
+    padding: 2px 2px 0 2px;
     padding-top: 2px;
     padding-bottom: 2px;
     line-height: 1.4 !important;
@@ -100,9 +100,21 @@
 <body>
 <div id="stage">
   <canvas id="c"></canvas>
-  <div id="upper-label" class="pf-text">upperplace</div>
-  <div id="lower-value" class="pf-text">lowerplace</div>
-  <textarea id="middle-text" class="pf-text" readonly spellcheck="false">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</textarea>
+  <div id="upper-label" class="pf-text">joshcerv.com</div>
+  <div id="lower-value" class="pf-text"></div>
+  <textarea id="middle-text" class="pf-text" readonly spellcheck="false">july 11
+
+updated the site to have the textbox
+
+
+july 10
+
+added the pacman style
+
+
+july 9th
+
+created the website</textarea>
 </div>
 <script>
 const W = 224, H = 288;
@@ -153,9 +165,6 @@ resize();
 window.addEventListener('resize', () => { resize(); draw(); updateScrollability(); });
 
 function updateScrollability() {
-  // Only allow scrolling once content genuinely exceeds the box.
-  // A tiny threshold avoids sub-pixel rounding making it "scrollable"
-  // by a hair when the text otherwise fits perfectly.
   const overflowing = middleText.scrollHeight > middleText.clientHeight + 1;
   middleText.style.overflowY = overflowing ? 'auto' : 'hidden';
   if (!overflowing) middleText.scrollTop = 0;
