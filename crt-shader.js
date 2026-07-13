@@ -22,7 +22,7 @@
 (function () {
   'use strict';
 
-  var CG_PATH = '/crt-geom.cg';
+  var CG_PATHS = ['crt-geom.cg', '/crt-geom.cg'];
   var OVERLAY_ID = 'crt-shader-overlay';
   var CAPTURE_INTERVAL_MS = 90; // ~11fps DOM capture, plenty for a mostly-static page
 
@@ -57,24 +57,37 @@
     }
   }
 
-  function start() {
-    fetch(CG_PATH, { cache: 'no-store' })
+  function tryFetch(paths, i) {
+    if (i >= paths.length) return Promise.resolve(null);
+    return fetch(paths[i], { cache: 'no-store' })
       .then(function (res) {
-        if (!res.ok) return null;
+        if (!res.ok) return tryFetch(paths, i + 1);
         return res.text();
       })
-      .then(function (text) {
-        if (text == null) return; // crt-geom.cg not present at site root - do nothing
-        try { parseParams(text); } catch (e) { /* fall back to defaults */ }
-        try {
-          initCRT();
-        } catch (e) {
-          console.warn('crt-shader: could not initialize CRT effect', e);
-        }
-      })
       .catch(function () {
-        // no network / no file - leave the page untouched
+        return tryFetch(paths, i + 1);
       });
+  }
+
+  function start() {
+    if (location.protocol === 'file:') {
+      console.warn(
+        'crt-shader: this page was opened as a local file (file://). ' +
+        'Browsers block fetch() from file:// pages, so the crt-geom.cg check ' +
+        'will always fail here. Serve the folder with a local web server ' +
+        '(e.g. `python3 -m http.server` in this folder, then open ' +
+        'http://localhost:8000) or upload it to your host to see the effect.'
+      );
+    }
+    tryFetch(CG_PATHS, 0).then(function (text) {
+      if (text == null) return; // crt-geom.cg not found anywhere - do nothing
+      try { parseParams(text); } catch (e) { /* fall back to defaults */ }
+      try {
+        initCRT();
+      } catch (e) {
+        console.warn('crt-shader: could not initialize CRT effect', e);
+      }
+    });
   }
 
   function initCRT() {
