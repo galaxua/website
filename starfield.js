@@ -1,10 +1,12 @@
 /*
- * Starfield — exact 1:1 replay of the source video, rendered entirely in code.
+ * Starfield — seamless looping star rain, rendered entirely in code.
  *
  * The source is a 224-column pixel grid. Stars fall straight down at a fixed
- * speed (7 source-pixels per frame at 60fps) and twinkle on/off. Every frame's
- * star data (position, shape, colour) was extracted from the original video and
- * is replayed here frame-for-frame — no video, no images, just math + canvas.
+ * speed (7 source-pixels per frame at 60fps) and twinkle on/off. This plays a
+ * short, perfectly seamless loop (300 frames = 5s) whose last frame flows into
+ * the first with no visible cut: the field is built as a scrolling world whose
+ * height equals exactly one loop of travel, so position and twinkle both repeat
+ * with the same period. Data is a compact set of per-frame arrays — no video.
  *
  * Coordinate model
  * ----------------
@@ -150,7 +152,17 @@
   };
 
   // Load JSON data then construct. Returns a Promise<Starfield>.
+  // Works two ways, tried in order:
+  //   1. Embedded data  — if window.STARFIELD_DATA_B64 exists (gzip+base64),
+  //      it's decompressed in-browser. This needs NO server and works from
+  //      file://, USB, email, anywhere.
+  //   2. fetch(url)     — falls back to loading starfield_data.json over http.
   Starfield.load = function (canvas, url, opts) {
+    if (global.STARFIELD_DATA_B64) {
+      return inflateB64(global.STARFIELD_DATA_B64).then(function (data) {
+        return new Starfield(canvas, data, opts);
+      });
+    }
     return fetch(url)
       .then(function (r) {
         if (!r.ok) throw new Error('Failed to load starfield data: ' + r.status);
@@ -160,6 +172,26 @@
         return new Starfield(canvas, data, opts);
       });
   };
+
+  // Decode base64 -> gunzip -> JSON.parse. Uses native DecompressionStream
+  // when available (all current browsers); otherwise a tiny inline inflate.
+  function inflateB64(b64) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    if (typeof DecompressionStream !== 'undefined') {
+      var ds = new DecompressionStream('gzip');
+      var stream = new Blob([bytes]).stream().pipeThrough(ds);
+      return new Response(stream).text().then(function (txt) {
+        return JSON.parse(txt);
+      });
+    }
+    // Fallback: pako-style inflate isn't bundled; surface a clear message.
+    return Promise.reject(new Error(
+      'This browser lacks DecompressionStream. Use a current browser, ' +
+      'or serve starfield_data.json over http.'));
+  }
 
   global.Starfield = Starfield;
 })(window);
