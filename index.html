@@ -8,8 +8,20 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { height:100%; background:#000; overflow:hidden; }
   #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-  /* The screen keeps native 224x288 aspect and is scaled to fill viewport height. */
-  #screen { position:relative; transform-origin:center center; }
+
+  /* BACKGROUND: full-viewport canvas. On desktop it fills the black side-bars
+     with more copies of the SAME animation, at the SAME pixel scale as the
+     center (no stretching), synced to the same frame. On mobile (viewport not
+     wider than the center) nothing extra shows -- you just see the center. */
+  #bg {
+    position:fixed; inset:0; z-index:0;
+    display:block;
+    image-rendering:pixelated; image-rendering:crisp-edges;
+    pointer-events:none;
+  }
+
+  /* The center screen keeps native 224x288 aspect and is scaled to fill height. */
+  #screen { position:relative; z-index:1; transform-origin:center center; }
   /* Canvas draws every source pixel exactly (no layout rounding). Upscaled crisp. */
   #art {
     display:block;
@@ -29,6 +41,7 @@
 </style>
 </head>
 <body>
+<canvas id="bg"></canvas>
 <div id="stage">
   <div id="screen">
     <canvas id="art" width="224" height="288"></canvas>
@@ -75,17 +88,91 @@ const frameImages = FRAMES.map(rows => {
 
 // ---- Zoom-to-fit via transform scale (crisp at any size) -------------------
 const screenEl = document.getElementById('screen');
+
+// Background canvas that tiles the same animation across the full width.
+const bg = document.getElementById('bg');
+const bgctx = bg.getContext('2d');
+bgctx.imageSmoothingEnabled = false;
+
+// Current scale (source-pixels -> screen-pixels). Set by fit().
+let SCALE = 1;
+// Left edge (in device px) of the CENTER copy, and how many source-px wide it is.
+let centerLeft = 0, tileW = 0, showSides = false;
+
 function fit(){
   const vh=window.innerHeight, vw=window.innerWidth;
-  let s = vh/FH;                 // fill height, top to bottom
-  if (FW*s > vw) s = vw/FW;      // clamp so width never overflows
+  // Same rule as before: fill height, but never let the CENTER overflow width.
+  let s = vh/FH;
+  if (FW*s > vw) s = vw/FW;
+  SCALE = s;
   screenEl.style.transform = 'scale('+s+')';
+
+  // Size the background canvas to the full viewport (device-pixel accurate).
+  const dpr = window.devicePixelRatio || 1;
+  bg.style.width = vw+'px';
+  bg.style.height = vh+'px';
+  bg.width  = Math.round(vw*dpr);
+  bg.height = Math.round(vh*dpr);
+  bgctx.setTransform(dpr,0,0,dpr,0,0);
+  bgctx.imageSmoothingEnabled = false;
+
+  // Geometry of the center copy, matched exactly to the scaled center screen.
+  tileW = FW * s;                       // width of one copy in screen px
+  const tileH = FH * s;                 // height of one copy in screen px
+  centerLeft = (vw - tileW) / 2;        // center copy is horizontally centered
+  bgTop = (vh - tileH) / 2;             // vertically centered (matches center)
+
+  // Only show side copies when there's real black space beside the center,
+  // i.e. desktop-ish widths. On mobile the center fills the width -> no sides.
+  showSides = (centerLeft > 0.5);
+
+  renderBG(lastDrawn);                  // redraw immediately on resize
 }
-window.addEventListener('resize', fit); fit();
+let bgTop = 0;
+window.addEventListener('resize', fit);
+
+// A tiny offscreen canvas holding the CURRENT frame at native 224x288.
+// We stamp copies of it into the background, scaled by SCALE (nearest-neighbour,
+// so it's the exact same pixels as the center -- no stretching, no smoothing).
+const src = document.createElement('canvas');
+src.width = FW; src.height = FH;
+const srcctx = src.getContext('2d');
+
+// Draw the background: the same frame tiled left and right of the center, at the
+// SAME scale, synced to the SAME frame. Copies are clipped at the screen edges
+// so the effect reaches all the way out with no black bars.
+let lastDrawn = 0;
+function renderBG(frameIndex){
+  const vw = window.innerWidth, vh = window.innerHeight;
+  bgctx.clearRect(0,0,vw,vh);
+  if(!showSides || tileW<=0) return;   // mobile / no side room -> nothing here
+
+  bgctx.imageSmoothingEnabled = false;
+  const tileH = FH * SCALE;
+  // How many copies are needed to cover from center outwards to each edge.
+  const leftCount  = Math.ceil(centerLeft / tileW);
+  const rightSpace = vw - (centerLeft + tileW);
+  const rightCount = Math.ceil(rightSpace / tileW);
+
+  // Left side (copies going left from the center)
+  for(let n=1; n<=leftCount; n++){
+    bgctx.drawImage(src, centerLeft - n*tileW, bgTop, tileW, tileH);
+  }
+  // Right side (copies going right from the center)
+  for(let n=1; n<=rightCount; n++){
+    bgctx.drawImage(src, centerLeft + n*tileW, bgTop, tileW, tileH);
+  }
+  // (The center itself is the separate #screen canvas on top; not drawn here.)
+}
 
 // ---- Playback at the measured cadence, perfect wrap 31 -> 0 ----------------
 let cur=-1, last=performance.now(), acc=FRAME_MS;
-function draw(i){ ctx.putImageData(frameImages[i], 0, 0); }
+function draw(i){
+  ctx.putImageData(frameImages[i], 0, 0);       // center canvas (unchanged)
+  srcctx.putImageData(frameImages[i], 0, 0);    // keep offscreen source in sync
+  lastDrawn = i;
+  renderBG(i);                                   // stamp the sides, same frame
+}
 function tick(now){
   acc += now-last; last=now;
   while(acc >= FRAME_MS){
@@ -95,6 +182,7 @@ function tick(now){
   }
   requestAnimationFrame(tick);
 }
+fit();                 // establish geometry first
 requestAnimationFrame(tick);
 </script>
 </body>
