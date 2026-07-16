@@ -214,19 +214,36 @@ let centerLeft = 0, centerTop = 0, tileW = 0, tileH = 0, showSides = false;
 // Same geometry in integer DEVICE pixels, used for the background tiling math
 // so repeated copies never drift out of alignment from floating-point error.
 let leftDev = 0, topDev = 0, tileWdev = 0, tileHdev = 0;
+let isPortraitMode = false;   // which single axis renderBG() should fill
 let gridReady = false;   // set true once gridCanvas/gridCtx exist (further below)
 
 function fit(){
   const dpr = window.devicePixelRatio || 1;
-  const vw = window.innerWidth, vh = window.innerHeight;
+
+  // Prefer visualViewport when available: it reports the ACTUAL visible
+  // area, independent of the browser's address bar/toolbar showing or
+  // hiding, pinch-zoom, or other UI chrome -- window.innerWidth/innerHeight
+  // can lag or misreport that in Chrome (especially on mobile), which is
+  // exactly what shows up as "not zooming to fill correctly." Safari has
+  // historically been more consistent here even without this API.
+  const vv = window.visualViewport;
+  const vw = vv ? vv.width  : window.innerWidth;
+  const vh = vv ? vv.height : window.innerHeight;
   const vwDev = vw*dpr, vhDev = vh*dpr;
 
-  // TRUE CONTAIN fit: the largest integer device-pixel scale where the art
-  // fits within BOTH the width and height without overflowing either one.
-  // On wide desktop screens the leftover space lands on the sides; on
-  // narrow/tall (mobile) screens it lands on top/bottom -- renderBG() below
-  // tiles the same starfield frame into whichever gap actually exists.
-  let sDev = Math.min(Math.floor(vwDev / FW), Math.floor(vhDev / FH));
+  // Pick ONE axis to fill, based on orientation -- never both. A true
+  // "fits within both axes" scale can leave gaps on BOTH sides at once on
+  // screens whose aspect ratio is very different from the game's (224x288),
+  // which is exactly what caused borders to tile horizontally AND
+  // vertically at the same time. Instead:
+  //   - landscape/wide viewports (vw >= vh) -> fit by height exactly,
+  //     any leftover space is on the sides only.
+  //   - portrait/tall viewports (vh > vw) -> fit by width exactly, any
+  //     leftover space is on top/bottom only.
+  isPortraitMode = vh > vw;
+  let sDev = isPortraitMode
+    ? Math.floor(vwDev / FW)
+    : Math.floor(vhDev / FH);
   if (sDev < 1) sDev = 1;
   scaleDev = sDev;
   SCALE = sDev / dpr;
@@ -242,7 +259,7 @@ function fit(){
   topDev  = Math.round((vhDev  - tileHdev) / 2);
   centerLeft = leftDev / dpr;
   centerTop  = topDev  / dpr;
-  showSides = SHOW_BORDERS && (leftDev > 0 || topDev > 0);
+  showSides = SHOW_BORDERS && (isPortraitMode ? topDev > 0 : leftDev > 0);
 
   // Position + size the art canvas via left/top/width/height (NOT transform).
   screenEl.style.left = centerLeft + 'px';
@@ -263,6 +280,12 @@ function fit(){
   renderGrid();                         // keep the text overlay in lockstep
 }
 window.addEventListener('resize', fit);
+// Chrome fires window 'resize' inconsistently when only the visualViewport
+// changes (address bar show/hide, pinch-zoom) -- listen to it directly too.
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', fit);
+  window.visualViewport.addEventListener('scroll', fit);
+}
 
 // A tiny offscreen canvas holding the CURRENT frame at native 224x288.
 // We stamp copies of it into the background, scaled by scaleDev (nearest-
@@ -270,12 +293,13 @@ window.addEventListener('resize', fit);
 const src = document.createElement('canvas');
 src.width = FW; src.height = FH;
 const srcctx = src.getContext('2d');
+srcctx.imageSmoothingEnabled = false;
 
-// Draw the background: the same frame tiled into whichever direction has
-// leftover space -- left/right on wide desktop screens, top/bottom on
-// narrow/tall (mobile) screens -- at the SAME integer scale, synced to the
-// SAME frame. All math here is in whole device pixels, so copies never
-// drift out of alignment from each other or from the center.
+// Draw the background: the same frame tiled into whichever SINGLE direction
+// the current orientation calls for -- left/right on landscape/wide screens,
+// or top/bottom on portrait/tall screens, but never both at the same time --
+// at the SAME integer scale, synced to the SAME frame. All math here is in
+// whole device pixels, so copies never drift out of alignment from each other.
 let lastDrawn = 0;
 function renderBG(frameIndex){
   const vwDev = bg.width, vhDev = bg.height;
@@ -284,8 +308,8 @@ function renderBG(frameIndex){
 
   bgctx.imageSmoothingEnabled = false;
 
-  if (leftDev > 0){
-    // Horizontal gap (wide/desktop screens): tile left and right of center.
+  if (!isPortraitMode){
+    // Landscape/wide: horizontal gap on the sides only.
     const leftCount  = Math.ceil(leftDev / tileWdev);
     const rightSpace = vwDev - (leftDev + tileWdev);
     const rightCount = Math.ceil(rightSpace / tileWdev);
@@ -295,10 +319,8 @@ function renderBG(frameIndex){
     for(let n=1; n<=rightCount; n++){
       bgctx.drawImage(src, leftDev + n*tileWdev, topDev, tileWdev, tileHdev);
     }
-  }
-
-  if (topDev > 0){
-    // Vertical gap (narrow/tall screens, e.g. mobile): tile above and below.
+  } else {
+    // Portrait/tall: vertical gap on top/bottom only.
     const topCount    = Math.ceil(topDev / tileHdev);
     const bottomSpace = vhDev - (topDev + tileHdev);
     const bottomCount = Math.ceil(bottomSpace / tileHdev);
@@ -314,7 +336,6 @@ function renderBG(frameIndex){
 
 // ---- Playback at the measured cadence, perfect wrap 31 -> 0 ----------------
 let cur=-1, last=performance.now(), acc=FRAME_MS;
-let rafId = null;     // handle for the currently-scheduled animation frame
 function draw(i){
   ctx.putImageData(frameImages[i], 0, 0);       // center canvas (unchanged)
   srcctx.putImageData(frameImages[i], 0, 0);    // keep offscreen source in sync
@@ -344,46 +365,20 @@ function tick(now){
       renderGrid();   // only redraw the text overlay when the state flips
     }
   }
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
+fit();                 // establish geometry first
+requestAnimationFrame(tick);
 
-// ---- Explicitly pause/resume on tab visibility -----------------------------
-// Don't just rely on browsers to auto-throttle requestAnimationFrame while
-// hidden -- that behavior isn't 100% consistent everywhere, and letting a
-// full-screen canvas animation keep doing GPU/CPU work in the background
-// (potentially for hours, across many tab switches) is exactly the kind of
-// thing that can make a tab bog down until even hitting refresh feels stuck.
-// Instead we fully STOP the loop (no rAF scheduled at all) the instant the
-// tab is hidden, and cleanly restart it -- with an immediate redraw, so
-// there's no black flash -- the instant it's visible again.
-function startLoop(){
-  if (rafId !== null) return;      // already running
-  last = performance.now();
-  acc = FRAME_MS;                  // draw exactly one fresh frame right away
-  rafId = requestAnimationFrame(tick);
-}
-function stopLoop(){
-  if (rafId !== null){ cancelAnimationFrame(rafId); rafId = null; }
-}
-
+// Belt-and-suspenders: the moment the tab becomes visible again, reset the
+// animation clock outright so there's no leftover elapsed time to process
+// at all (the clamp in tick() already prevents a freeze either way, but
+// this keeps the very first frame back from doing any catch-up work).
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden'){
-    stopLoop();
-  } else {
-    // Re-measure the viewport in case it changed while hidden (e.g. mobile
-    // browser chrome showing/hiding changes the visible height), then force
-    // an immediate repaint of the current frame before resuming playback.
-    fit();
-    if (cur >= 0){
-      draw(cur);
-      renderGrid();
-    }
-    startLoop();
+  if (document.visibilityState === 'visible') {
+    last = performance.now();
   }
 });
-
-fit();                 // establish geometry first
-startLoop();
 
 // ---- Character grid drawn from 8x8 PNG TILES -------------------------------
 // Each character is its own 8x8 PNG in the tiles/ folder. The tile defines the
