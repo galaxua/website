@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>joshcerv.com</title>
+<title>website.com</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { height:100%; background:#000; overflow:hidden; }
@@ -131,7 +131,7 @@ const GRID = [
   "[ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]",  // row 32
   "[ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]",  // row 33
   "[ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]",  // row 34
-  "[ ][J][O][S][H][C][E][R][V][.][C][O][M][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]",  // row 35
+  "[ ][W][E][B][S][I][T][E][.][C][O][M][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ][ ]",  // row 35
 ];
 
 /* OPTIONAL row colors. Key = row number, value = hex color. Every cell in that
@@ -222,9 +222,18 @@ function fit(){
   const vwDev = vw*dpr, vhDev = vh*dpr;
 
   // Fill height, but never let the CENTER overflow width -- same rule as
-  // before, just computed in whole device pixels so it lands exactly.
+  // the original desktop behavior, computed in whole device pixels so it
+  // lands exactly.
   let sDev = Math.floor(vhDev / FH);
-  if (FW*sDev > vwDev) sDev = Math.floor(vwDev / FW);
+  if (FW*sDev > vwDev) {
+    // Narrow/tall viewport (typically mobile): fitting-by-height would
+    // overflow the width. Rather than shrinking further to fit the width
+    // (which used to leave black bars top/bottom), scale up to COVER the
+    // whole viewport instead, cropping only the small sliver that spills
+    // past the left/right edges. Desktop never reaches this branch, so its
+    // look is unchanged.
+    sDev = Math.max(Math.ceil(vwDev / FW), Math.ceil(vhDev / FH));
+  }
   if (sDev < 1) sDev = 1;
   scaleDev = sDev;
   SCALE = sDev / dpr;
