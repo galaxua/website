@@ -221,43 +221,28 @@ function fit(){
   const vw = window.innerWidth, vh = window.innerHeight;
   const vwDev = vw*dpr, vhDev = vh*dpr;
 
-  // Does fitting-by-height (the original desktop behavior) overflow the
-  // width? That only happens on narrow/tall viewports -- i.e. mobile.
-  let sDev = Math.floor(vhDev / FH);
-  const isMobile = FW*sDev > vwDev;
+  // TRUE CONTAIN fit: the largest integer device-pixel scale where the art
+  // fits within BOTH the width and height without overflowing either one.
+  // On wide desktop screens the leftover space lands on the sides; on
+  // narrow/tall (mobile) screens it lands on top/bottom -- renderBG() below
+  // tiles the same starfield frame into whichever gap actually exists.
+  let sDev = Math.min(Math.floor(vwDev / FW), Math.floor(vhDev / FH));
+  if (sDev < 1) sDev = 1;
+  scaleDev = sDev;
+  SCALE = sDev / dpr;
 
-  if (isMobile){
-    // MOBILE: stretch the 224x288 grid to fill the viewport EXACTLY --
-    // full width AND full height, aspect ratio be damned. No cropping,
-    // no letterboxing. This can't use a single integer device-pixel scale
-    // (that's what caused the crop/bars), so width and height are set
-    // directly to the viewport size in CSS px.
-    scaleDev = 1;
-    SCALE = 1;
-    tileWdev = vwDev;  tileHdev = vhDev;
-    tileW = vw;        tileH = vh;
-    leftDev = 0; topDev = 0;
-    centerLeft = 0; centerTop = 0;
-    showSides = false;   // art already covers the full viewport itself
-  } else {
-    // DESKTOP: original integer device-pixel contain-fit, unchanged.
-    if (sDev < 1) sDev = 1;
-    scaleDev = sDev;
-    SCALE = sDev / dpr;
+  tileWdev = FW * scaleDev;
+  tileHdev = FH * scaleDev;
+  tileW = tileWdev / dpr;
+  tileH = tileHdev / dpr;
 
-    tileWdev = FW * scaleDev;
-    tileHdev = FH * scaleDev;
-    tileW = tileWdev / dpr;
-    tileH = tileHdev / dpr;
-
-    // Snap the center's top-left corner to a whole device pixel BEFORE
-    // converting back to CSS px, so the art never straddles a physical pixel.
-    leftDev = Math.round((vwDev - tileWdev) / 2);
-    topDev  = Math.round((vhDev  - tileHdev) / 2);
-    centerLeft = leftDev / dpr;
-    centerTop  = topDev  / dpr;
-    showSides = SHOW_BORDERS && (leftDev > 0);
-  }
+  // Snap the center's top-left corner to a whole device pixel BEFORE
+  // converting back to CSS px, so the art never straddles a physical pixel.
+  leftDev = Math.round((vwDev - tileWdev) / 2);
+  topDev  = Math.round((vhDev  - tileHdev) / 2);
+  centerLeft = leftDev / dpr;
+  centerTop  = topDev  / dpr;
+  showSides = SHOW_BORDERS && (leftDev > 0 || topDev > 0);
 
   // Position + size the art canvas via left/top/width/height (NOT transform).
   screenEl.style.left = centerLeft + 'px';
@@ -286,28 +271,43 @@ const src = document.createElement('canvas');
 src.width = FW; src.height = FH;
 const srcctx = src.getContext('2d');
 
-// Draw the background: the same frame tiled left and right of the center, at
-// the SAME integer scale, synced to the SAME frame. All math here is in whole
-// device pixels, so copies never drift out of alignment from each other.
+// Draw the background: the same frame tiled into whichever direction has
+// leftover space -- left/right on wide desktop screens, top/bottom on
+// narrow/tall (mobile) screens -- at the SAME integer scale, synced to the
+// SAME frame. All math here is in whole device pixels, so copies never
+// drift out of alignment from each other or from the center.
 let lastDrawn = 0;
 function renderBG(frameIndex){
   const vwDev = bg.width, vhDev = bg.height;
   bgctx.clearRect(0,0,vwDev,vhDev);
-  if(!showSides || tileWdev<=0) return;   // mobile / no side room -> nothing here
+  if(!showSides || tileWdev<=0 || tileHdev<=0) return;   // no gap -> nothing to draw
 
   bgctx.imageSmoothingEnabled = false;
-  // How many copies are needed to cover from center outwards to each edge.
-  const leftCount  = Math.ceil(leftDev / tileWdev);
-  const rightSpace = vwDev - (leftDev + tileWdev);
-  const rightCount = Math.ceil(rightSpace / tileWdev);
 
-  // Left side (copies going left from the center)
-  for(let n=1; n<=leftCount; n++){
-    bgctx.drawImage(src, leftDev - n*tileWdev, topDev, tileWdev, tileHdev);
+  if (leftDev > 0){
+    // Horizontal gap (wide/desktop screens): tile left and right of center.
+    const leftCount  = Math.ceil(leftDev / tileWdev);
+    const rightSpace = vwDev - (leftDev + tileWdev);
+    const rightCount = Math.ceil(rightSpace / tileWdev);
+    for(let n=1; n<=leftCount; n++){
+      bgctx.drawImage(src, leftDev - n*tileWdev, topDev, tileWdev, tileHdev);
+    }
+    for(let n=1; n<=rightCount; n++){
+      bgctx.drawImage(src, leftDev + n*tileWdev, topDev, tileWdev, tileHdev);
+    }
   }
-  // Right side (copies going right from the center)
-  for(let n=1; n<=rightCount; n++){
-    bgctx.drawImage(src, leftDev + n*tileWdev, topDev, tileWdev, tileHdev);
+
+  if (topDev > 0){
+    // Vertical gap (narrow/tall screens, e.g. mobile): tile above and below.
+    const topCount    = Math.ceil(topDev / tileHdev);
+    const bottomSpace = vhDev - (topDev + tileHdev);
+    const bottomCount = Math.ceil(bottomSpace / tileHdev);
+    for(let n=1; n<=topCount; n++){
+      bgctx.drawImage(src, leftDev, topDev - n*tileHdev, tileWdev, tileHdev);
+    }
+    for(let n=1; n<=bottomCount; n++){
+      bgctx.drawImage(src, leftDev, topDev + n*tileHdev, tileWdev, tileHdev);
+    }
   }
   // (The center itself is the separate #screen canvas on top; not drawn here.)
 }
