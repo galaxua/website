@@ -355,6 +355,20 @@ requestAnimationFrame(tick);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     last = performance.now();
+    acc = FRAME_MS;   // draw exactly one fresh frame on the very next tick
+
+    // Force an IMMEDIATE, synchronous repaint instead of waiting for the
+    // next requestAnimationFrame tick. Some browsers (especially on
+    // mobile) discard or delay repainting canvas layers that were fully
+    // backgrounded, so without this the tab shows a black/blank frame
+    // until the next scheduled tick eventually redraws it. Re-running
+    // fit() also re-measures the viewport in case it changed while hidden
+    // (e.g. mobile browser chrome showing/hiding changes the visible height).
+    fit();
+    if (cur >= 0) {
+      draw(cur);
+      renderGrid();
+    }
   }
 });
 
