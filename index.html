@@ -215,32 +215,32 @@ let bgTilesAbove = 0;
 let gridReady = false;   // set true once gridCanvas/gridCtx exist (further below)
 
 function fit(){
-  // Use the LAYOUT viewport (window.innerWidth/innerHeight), not
-  // visualViewport. window.innerWidth/innerHeight stay fixed at the page's
-  // actual window/tab size regardless of pinch/trackpad zoom -- zoom is
-  // purely an optical magnification the browser applies on top of the
-  // already-rendered page (the same way it works on claude.ai and any other
-  // ordinary website). fit() intentionally does NOT react to zoom: the art
-  // is laid out once for the real window size, and the browser's native
-  // zoom just magnifies that fixed layout in place, with nothing moving or
-  // resizing underneath it.
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
-  // Pick ONE axis to fit by -- whichever is tighter -- and never overflow
-  // either axis. This is "contain" (zoom to fit entirely on screen) rather
-  // than "cover", so the whole 224x288 frame is always fully visible.
+  // Use window.innerWidth/innerHeight as the baseline (the LAYOUT
+  // viewport) -- this is what keeps native pinch/trackpad zoom a pure
+  // optical magnification with nothing recalculating (see zoom handling
+  // notes elsewhere in this file).
   //
-  // SCALE is a plain CSS-pixel-per-source-pixel ratio and is allowed to be
-  // fractional (e.g. 3.47), not just a whole number. Restricting it to whole
-  // device pixels always leaves a leftover remainder on the fitted axis,
-  // because the window height/width is essentially never an exact multiple
-  // of 288 or 224 -- that remainder is what shows up as a gap above/below
-  // (or left/right) the art even though it's centered correctly. Allowing a
-  // fractional scale means the fitted axis touches both edges exactly.
-  // image-rendering:pixelated still keeps every source pixel a crisp,
-  // uniform block -- it just isn't guaranteed to be the same integer size
-  // in physical device pixels.
+  // BUT: on Safari iOS specifically, the page's CSS height:100% resolves
+  // against the "large" viewport size (as if the address bar/tab bar were
+  // always hidden), and window.innerWidth/innerHeight report that same
+  // large size even while the tab bar is actually visible and covering
+  // part of the screen. fit() then draws the starfield to fill that
+  // larger-than-actually-visible height -- the art itself is fine, but the
+  // bottom strip of it ends up physically underneath Safari's opaque tab
+  // bar, which just paints black over it. That showed up as "the effect
+  // doesn't show behind the tab bar, it's just black."
+  //
+  // window.visualViewport reports the ACTUAL currently-visible area and
+  // does shrink when Safari's chrome is shown -- exactly what's needed
+  // here. The one thing to avoid is using it while the page is pinch-
+  // zoomed (visualViewport.scale != 1), since that's the case we
+  // deliberately want to ignore so zoom stays a pure magnification. So:
+  // use visualViewport's size only when it isn't currently zoomed.
+  const vv = window.visualViewport;
+  const vvUsable = vv && Math.abs(vv.scale - 1) < 0.01;
+  const vw = vvUsable ? vv.width  : window.innerWidth;
+  const vh = vvUsable ? vv.height : window.innerHeight;
+
   const scaleByWidth  = vw / FW;
   const scaleByHeight = vh / FH;
   SCALE = Math.min(scaleByWidth, scaleByHeight);
@@ -251,7 +251,6 @@ function fit(){
   centerLeft = (vw - tileW) / 2;
   centerTop  = (vh - tileH) / 2;
 
-  // Position + size the art canvas via left/top/width/height (NOT transform).
   screenEl.style.left = centerLeft + 'px';
   screenEl.style.top  = centerTop  + 'px';
   artEl.style.width   = tileW  + 'px';
@@ -333,6 +332,14 @@ function fit(){
   renderGrid();   // keep the text overlay in lockstep
 }
 window.addEventListener('resize', fit);
+// Safari's tab-bar/address-bar showing or hiding changes visualViewport's
+// size without reliably firing a window 'resize' event -- listen directly
+// so fit() picks up the new visible height right away (this is what makes
+// the starfield correctly avoid being covered by the tab bar).
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', fit);
+  window.visualViewport.addEventListener('scroll', fit);
+}
 
 // Safari (and some other browsers) can report a window size that hasn't
 // caught up yet with the FINAL toolbar/tab-bar chrome height at the moment
