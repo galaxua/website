@@ -401,7 +401,7 @@ function draw(i){
 // moved or altered. This creates a deliberate 16px overlap/gap at the
 // border-to-border seams (between adjacent border tiles) while shifting
 // the seam CLOSEST to the art by 16px, per confirmed instruction.
-const VERTICAL_OFFSET = 16;
+const VERTICAL_OFFSET = 32;
 function renderBg(){
   bgCtx.clearRect(0, 0, bgEl.width, bgEl.height);
   for (let r = 0; r < bgRowsNeeded; r++){
