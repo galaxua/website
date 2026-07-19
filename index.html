@@ -361,6 +361,10 @@ frameCtx.imageSmoothingEnabled = false;
 const SCROLL_PX_PER_FRAME = 1;
 let scrollY = 0;
 
+// Random horizontal placement, chosen once per page load.
+// Whole source pixels only, so the field stays pixel-perfect.
+const OFFSET_X = Math.floor(Math.random() * FW);
+
 const srcCanvas = document.createElement('canvas');
 srcCanvas.width = FW; srcCanvas.height = FH;
 const srcCtx = srcCanvas.getContext('2d');
@@ -371,19 +375,26 @@ function draw(i){
 
   // Scroll cycle is the clip's own height, so repeats butt edge-to-edge.
   const off = ((scrollY % FH) + FH) % FH;
+  const offX = ((OFFSET_X % FW) + FW) % FW;
 
-  // Draw enough copies to cover the window, starting one clip above the
-  // offset. Consecutive copies are different parts of the loop, so nothing
-  // is ever shown twice at once.
+  // Draw enough copies to cover the window, starting one clip above/left of
+  // the offset. Consecutive copies are different parts of the loop, so
+  // nothing is ever shown twice at once.
   ctx.clearRect(0, 0, CONTENT_W, CONTENT_H);
   for (let y = off - FH; y < CONTENT_H; y += FH){
-    ctx.drawImage(srcCanvas, 0, y);
+    for (let x = offX - FW; x < CONTENT_W; x += FW){
+      ctx.drawImage(srcCanvas, x, y);
+    }
   }
 
-  // Background tile is one full clip height, wrapped at the same offset.
+  // Background tile is one full clip, wrapped at the same offsets so the
+  // tiled background stays in phase with the foreground.
   frameCtx.clearRect(0, 0, FW, FH);
-  frameCtx.drawImage(srcCanvas, 0, off);
-  frameCtx.drawImage(srcCanvas, 0, off - FH);
+  for (const dy of [off, off - FH]){
+    for (const dx of [offX, offX - FW]){
+      frameCtx.drawImage(srcCanvas, dx, dy);
+    }
+  }
 
   renderBg();
 }
